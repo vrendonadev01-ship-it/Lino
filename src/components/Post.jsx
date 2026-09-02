@@ -3,7 +3,15 @@ import {
   MessageCircle,
   Repeat2,
   Send,
+  MoreHorizontal,
+  Bookmark,
+  Link,
+  Share2,
+  Trash2,
+  Flag,
 } from "lucide-react";
+
+import { useState } from "react";
 
 import CommentSection from "./CommentSection";
 
@@ -16,22 +24,228 @@ function Post({
   commentText,
   setCommentText,
   onAddComment,
+  onDeletePost,
+  currentUserId,
 }) {
+
+  const [showMenu, setShowMenu] =
+    useState(false);
+
+  const [copyMessage, setCopyMessage] =
+    useState(false);
+
+
+  const isOwner =
+    post.userId ===
+    currentUserId;
+
+
+  /* =================================
+     COPIAR ENLACE
+  ================================= */
+
+  async function handleCopyLink() {
+
+    const postUrl =
+      `${window.location.origin}/post/${post.id}`;
+
+
+    try {
+
+      await navigator.clipboard.writeText(
+        postUrl
+      );
+
+
+      setCopyMessage(true);
+
+
+      setTimeout(() => {
+
+        setCopyMessage(false);
+
+      }, 1800);
+
+
+      setShowMenu(false);
+
+    } catch (error) {
+
+      console.error(
+        "No se pudo copiar el enlace:",
+        error
+      );
+
+    }
+
+  }
+
+
+  /* =================================
+     COMPARTIR
+  ================================= */
+
+  async function handleShare() {
+
+    const postUrl =
+      `${window.location.origin}/post/${post.id}`;
+
+
+    const shareData = {
+
+      title:
+        `${post.user} en Campus`,
+
+      text:
+        post.content
+          ? post.content
+          : "Mira esta publicación en Campus.",
+
+      url:
+        postUrl,
+
+    };
+
+
+    try {
+
+      // Si el navegador/dispositivo
+      // soporta el menú nativo.
+
+      if (
+        navigator.share
+      ) {
+
+        await navigator.share(
+          shareData
+        );
+
+      } else {
+
+        // Si no existe navigator.share,
+        // copiamos el enlace.
+
+        await navigator.clipboard.writeText(
+          postUrl
+        );
+
+
+        setCopyMessage(true);
+
+
+        setTimeout(() => {
+
+          setCopyMessage(false);
+
+        }, 1800);
+
+      }
+
+
+      setShowMenu(false);
+
+    } catch (error) {
+
+      // Cancelar el menú nativo
+      // no debe generar un error
+      // visible para el usuario.
+
+      if (
+        error?.name !==
+        "AbortError"
+      ) {
+
+        console.error(
+          "Error compartiendo:",
+          error
+        );
+
+      }
+
+    }
+
+  }
+
+
+  /* =================================
+     GUARDAR
+  ================================= */
+
+  function handleSave() {
+
+    // Preparado para conectar
+    // posteriormente con Supabase.
+
+    setShowMenu(false);
+
+    console.log(
+      "Guardar publicación:",
+      post.id
+    );
+
+  }
+
+
+  /* =================================
+     ENVIAR
+  ================================= */
+
+  function handleSend() {
+
+    // Posteriormente esto abrirá
+    // el selector de conversaciones.
+
+    setShowMenu(false);
+
+    console.log(
+      "Enviar publicación:",
+      post.id
+    );
+
+  }
+
+
+  /* =================================
+     REPORTAR
+  ================================= */
+
+  function handleReport() {
+
+    setShowMenu(false);
+
+    console.log(
+      "Reportar publicación:",
+      post.id
+    );
+
+  }
+
 
   return (
 
     <article className="post">
 
-      {/* AVATAR */}
+
+      {/* =================================
+          AVATAR
+      ================================= */}
 
       <div className="avatar">
-        {post.user.charAt(0)}
+
+        {post.user
+          ?.charAt(0)
+          ?.toUpperCase() ||
+          "U"}
+
       </div>
 
 
       <div className="post-content">
 
-        {/* HEADER */}
+
+        {/* =================================
+            HEADER DEL POST
+        ================================= */}
 
         <div className="post-header">
 
@@ -51,10 +265,218 @@ function Post({
             {post.time}
           </span>
 
+
+          {/* =================================
+              MENÚ DE OPCIONES
+          ================================= */}
+
+          <div className="post-menu-container">
+
+            <button
+              className="post-menu-button"
+              onClick={() =>
+                setShowMenu(
+                  (current) =>
+                    !current
+                )
+              }
+              aria-label="Opciones de publicación"
+              title="Opciones"
+            >
+
+              <MoreHorizontal
+                size={19}
+                strokeWidth={1.8}
+              />
+
+            </button>
+
+
+            {showMenu && (
+
+              <>
+
+                <div
+                  className="post-menu-overlay"
+                  onClick={() =>
+                    setShowMenu(false)
+                  }
+                />
+
+
+                <div className="post-menu">
+
+
+                  {/* GUARDAR */}
+
+                  <button
+                    className="post-menu-item"
+                    onClick={
+                      handleSave
+                    }
+                  >
+
+                    <Bookmark
+                      size={17}
+                      strokeWidth={1.8}
+                    />
+
+                    <span>
+                      Guardar publicación
+                    </span>
+
+                  </button>
+
+
+                  {/* ENVIAR */}
+
+                  <button
+                    className="post-menu-item"
+                    onClick={
+                      handleSend
+                    }
+                  >
+
+                    <Send
+                      size={17}
+                      strokeWidth={1.8}
+                    />
+
+                    <span>
+                      Enviar
+                    </span>
+
+                  </button>
+
+
+                  {/* COPIAR ENLACE */}
+
+                  <button
+                    className="post-menu-item"
+                    onClick={
+                      handleCopyLink
+                    }
+                  >
+
+                    <Link
+                      size={17}
+                      strokeWidth={1.8}
+                    />
+
+                    <span>
+                      Copiar enlace
+                    </span>
+
+                  </button>
+
+
+                  {/* COMPARTIR */}
+
+                  <button
+                    className="post-menu-item"
+                    onClick={
+                      handleShare
+                    }
+                  >
+
+                    <Share2
+                      size={17}
+                      strokeWidth={1.8}
+                    />
+
+                    <span>
+                      Compartir
+                    </span>
+
+                  </button>
+
+
+                  {/* SEPARADOR */}
+
+                  <div className="post-menu-divider" />
+
+
+                  {/* ELIMINAR */}
+
+                  {isOwner ? (
+
+                    <button
+                      className="post-menu-item danger"
+                      onClick={() => {
+
+                        setShowMenu(
+                          false
+                        );
+
+                        onDeletePost(
+                          post
+                        );
+
+                      }}
+                    >
+
+                      <Trash2
+                        size={17}
+                        strokeWidth={1.8}
+                      />
+
+                      <span>
+                        Eliminar publicación
+                      </span>
+
+                    </button>
+
+                  ) : (
+
+                    <button
+                      className="post-menu-item danger"
+                      onClick={
+                        handleReport
+                      }
+                    >
+
+                      <Flag
+                        size={17}
+                        strokeWidth={1.8}
+                      />
+
+                      <span>
+                        Reportar publicación
+                      </span>
+
+                    </button>
+
+                  )}
+
+                </div>
+
+              </>
+
+            )}
+
+          </div>
+
         </div>
 
 
-        {/* TEXTO */}
+        {/* =================================
+            MENSAJE DE COPIADO
+        ================================= */}
+
+        {copyMessage && (
+
+          <div className="post-copy-message">
+
+            Enlace copiado ✓
+
+          </div>
+
+        )}
+
+
+        {/* =================================
+            CONTENIDO
+        ================================= */}
 
         {post.content && (
 
@@ -65,15 +487,20 @@ function Post({
         )}
 
 
-        {/* IMAGEN */}
+        {/* =================================
+            IMAGEN
+        ================================= */}
 
         {post.image && (
 
           <div className="post-image">
 
             <img
-              src={post.image}
+              src={
+                post.image
+              }
               alt="Publicación"
+              loading="lazy"
             />
 
           </div>
@@ -81,9 +508,12 @@ function Post({
         )}
 
 
-        {/* ACCIONES */}
+        {/* =================================
+            ACCIONES
+        ================================= */}
 
         <div className="post-buttons">
+
 
           {/* COMENTARIOS */}
 
@@ -93,14 +523,18 @@ function Post({
                 ? "post-action active"
                 : "post-action"
             }
-            onClick={onToggleComments}
+            onClick={
+              onToggleComments
+            }
             aria-label="Comentarios"
           >
 
             <MessageCircle
               size={18}
               strokeWidth={
-                isCommentsOpen ? 2.2 : 1.8
+                isCommentsOpen
+                  ? 2.2
+                  : 1.8
               }
             />
 
@@ -134,7 +568,9 @@ function Post({
                 ? "post-action like-button liked"
                 : "post-action like-button"
             }
-            onClick={onToggleLike}
+            onClick={
+              onToggleLike
+            }
             aria-label={
               post.liked
                 ? "Quitar me gusta"
@@ -145,7 +581,9 @@ function Post({
             <Heart
               size={18}
               strokeWidth={
-                post.liked ? 2.2 : 1.8
+                post.liked
+                  ? 2.2
+                  : 1.8
               }
               fill={
                 post.liked
@@ -165,6 +603,9 @@ function Post({
 
           <button
             className="post-action"
+            onClick={
+              handleShare
+            }
             aria-label="Compartir"
           >
 
@@ -175,22 +616,33 @@ function Post({
 
           </button>
 
+
         </div>
 
 
-        {/* COMENTARIOS */}
+        {/* =================================
+            COMENTARIOS
+        ================================= */}
 
         {isCommentsOpen && (
 
           <CommentSection
-            post={post}
-            commentText={commentText}
+            post={
+              post
+            }
+
+            commentText={
+              commentText
+            }
+
             setCommentText={
               setCommentText
             }
+
             onAddComment={
               onAddComment
             }
+
           />
 
         )}
@@ -198,7 +650,9 @@ function Post({
       </div>
 
     </article>
+
   );
+
 }
 
 

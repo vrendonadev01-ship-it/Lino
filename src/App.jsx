@@ -55,49 +55,7 @@ function App() {
      POSTS
   ================================= */
 
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      user: "Juan Pérez",
-      username: "@juanp",
-      time: "Hace 10 min",
-      content:
-        "Cuando dicen que hoy no habrá tarea y el profe abre Classroom 💀",
-      image: null,
-      likes: 24,
-      comments: 1,
-      liked: false,
-      commentList: [
-        {
-          id: 1,
-          user: "Ana López",
-          username: "@analopez",
-          text: "JAJAJA literalmente 😭",
-        },
-      ],
-    },
-
-    {
-      id: 2,
-      user: "María Torres",
-      username: "@mariatorres",
-      time: "Hace 32 min",
-      content:
-        "Sobrevivimos otra semana de colegio 😭",
-      image: null,
-      likes: 47,
-      comments: 1,
-      liked: false,
-      commentList: [
-        {
-          id: 2,
-          user: "Diego Ramos",
-          username: "@diegor",
-          text: "Por fin viernes 💀",
-        },
-      ],
-    },
-  ]);
+  const [posts, setPosts] = useState([]);
 
 
   /* =================================
@@ -211,6 +169,114 @@ function App() {
 
 
   /* =================================
+     CARGAR POSTS DESDE SUPABASE
+  ================================= */
+
+  useEffect(() => {
+
+    async function loadPosts() {
+
+      if (!session?.user?.id) {
+        setPosts([]);
+        return;
+      }
+
+      const { data, error } =
+        await supabase
+          .from("posts")
+          .select(`
+            id,
+            user_id,
+            content,
+            image_url,
+            created_at,
+            profiles (
+              name,
+              username,
+              avatar_url
+            )
+          `)
+          .order("created_at", {
+            ascending: false,
+          });
+
+
+      if (error) {
+
+        console.error(
+          "Error cargando publicaciones:",
+          error
+        );
+
+        return;
+      }
+
+
+      const formattedPosts =
+        (data || []).map((post) => {
+
+          const username =
+            post.profiles?.username
+              ? `@${post.profiles.username.replace(
+                  /^@/,
+                  ""
+                )}`
+              : "@usuario";
+
+
+          return {
+
+            id:
+              post.id,
+
+            user:
+              post.profiles?.name ||
+              "Usuario",
+
+            username,
+
+            userId:
+              post.user_id,
+
+            time:
+              new Date(
+                post.created_at
+              ).toLocaleString(),
+
+            content:
+              post.content || "",
+
+            image:
+              post.image_url || null,
+
+            likes:
+              0,
+
+            comments:
+              0,
+
+            liked:
+              false,
+
+            commentList:
+              [],
+
+          };
+
+        });
+
+
+      setPosts(formattedPosts);
+
+    }
+
+
+    loadPosts();
+
+  }, [session]);
+
+
+  /* =================================
      CARGAR SEGUIDORES Y SIGUIENDO
   ================================= */
 
@@ -234,16 +300,21 @@ function App() {
             `follower_id.eq.${session.user.id},following_id.eq.${session.user.id}`
           );
 
+
       if (error) {
+
         console.error(
           "Error cargando follows:",
           error
         );
+
         return;
       }
 
+
       const followingIds = [];
       const followerIds = [];
+
 
       (data || []).forEach((follow) => {
 
@@ -251,26 +322,34 @@ function App() {
           follow.follower_id ===
           session.user.id
         ) {
+
           followingIds.push(
             follow.following_id
           );
+
         }
+
 
         if (
           follow.following_id ===
           session.user.id
         ) {
+
           followerIds.push(
             follow.follower_id
           );
+
         }
 
       });
 
+
       setFollowing(followingIds);
+
       setFollowers(followerIds);
 
     }
+
 
     loadFollowData();
 
@@ -281,7 +360,7 @@ function App() {
      PUBLICAR
   ================================= */
 
-  function publishPost() {
+  async function publishPost() {
 
     if (
       !newPost.trim() &&
@@ -291,44 +370,355 @@ function App() {
     }
 
 
+    if (!session?.user?.id) {
+      return;
+    }
+
+
+    let imageUrl = null;
+
+
+    /* ================================
+       SUBIR IMAGEN A STORAGE
+    ================================= */
+
+    if (selectedImage) {
+
+      try {
+
+        const response =
+          await fetch(selectedImage);
+
+        const blob =
+          await response.blob();
+
+
+        const fileExtension =
+          blob.type?.split("/")[1] ||
+          "jpg";
+
+
+        const fileName =
+          `${session.user.id}/${crypto.randomUUID()}.${fileExtension}`;
+
+
+        const { error: uploadError } =
+          await supabase.storage
+            .from("post-images")
+            .upload(
+              fileName,
+              blob,
+              {
+                contentType:
+                  blob.type ||
+                  "image/jpeg",
+
+                upsert: false,
+              }
+            );
+
+
+        if (uploadError) {
+
+          console.error(
+            "Error subiendo imagen:",
+            uploadError
+          );
+
+          return;
+        }
+
+
+        const {
+          data: publicUrlData,
+        } =
+          supabase.storage
+            .from("post-images")
+            .getPublicUrl(
+              fileName
+            );
+
+
+        imageUrl =
+          publicUrlData.publicUrl;
+
+      } catch (error) {
+
+        console.error(
+          "Error procesando imagen:",
+          error
+        );
+
+        return;
+      }
+
+    }
+
+
+    /* ================================
+       GUARDAR POST
+    ================================= */
+
+    const { data, error } =
+      await supabase
+        .from("posts")
+        .insert({
+
+          user_id:
+            session.user.id,
+
+          content:
+            newPost.trim(),
+
+          image_url:
+            imageUrl,
+
+        })
+        .select(`
+          id,
+          user_id,
+          content,
+          image_url,
+          created_at,
+          profiles (
+            name,
+            username,
+            avatar_url
+          )
+        `)
+        .single();
+
+
+    if (error) {
+
+      console.error(
+        "Error publicando:",
+        error
+      );
+
+      return;
+    }
+
+
+    const username =
+      data.profiles?.username
+        ? `@${data.profiles.username.replace(
+            /^@/,
+            ""
+          )}`
+        : "@usuario";
+
+
     const post = {
 
-      id: Date.now(),
+      id:
+        data.id,
 
       user:
-        session?.user?.user_metadata?.name ||
-        "Victor",
+        data.profiles?.name ||
+        session.user.user_metadata?.name ||
+        "Usuario",
 
-      username:
-        session?.user?.user_metadata?.username
-          ? `@${session.user.user_metadata.username}`
-          : "@victor",
+      username,
 
-      time: "Ahora",
+      userId:
+        data.user_id,
 
-      content: newPost,
+      time:
+        "Ahora",
 
-      image: selectedImage,
+      content:
+        data.content || "",
 
-      likes: 0,
+      image:
+        data.image_url || null,
 
-      comments: 0,
+      likes:
+        0,
 
-      liked: false,
+      comments:
+        0,
 
-      commentList: [],
+      liked:
+        false,
+
+      commentList:
+        [],
+
     };
 
 
-    setPosts((currentPosts) => [
-      post,
-      ...currentPosts,
-    ]);
+    setPosts(
+      (currentPosts) => [
+        post,
+        ...currentPosts,
+      ]
+    );
 
 
     setNewPost("");
 
     setSelectedImage(null);
+
+  }
+
+
+  /* =================================
+     ELIMINAR POST
+  ================================= */
+
+  async function deletePost(post) {
+
+    if (!session?.user?.id) {
+      return;
+    }
+
+
+    // Seguridad adicional
+    // en el frontend.
+
+    if (
+      post.userId !==
+      session.user.id
+    ) {
+
+      console.error(
+        "No puedes eliminar este post."
+      );
+
+      return;
+    }
+
+
+    const confirmed =
+      window.confirm(
+        "¿Quieres eliminar esta publicación?"
+      );
+
+
+    if (!confirmed) {
+      return;
+    }
+
+
+    /* ================================
+       ELIMINAR IMAGEN DE STORAGE
+    ================================= */
+
+    if (post.image) {
+
+      try {
+
+        const imageUrl =
+          new URL(post.image);
+
+
+        const marker =
+          "/post-images/";
+
+
+        const markerIndex =
+          imageUrl.pathname.indexOf(
+            marker
+          );
+
+
+        if (markerIndex !== -1) {
+
+          const filePath =
+            decodeURIComponent(
+              imageUrl.pathname.slice(
+                markerIndex +
+                marker.length
+              )
+            );
+
+
+          const {
+            error: storageError,
+          } =
+            await supabase.storage
+              .from("post-images")
+              .remove([
+                filePath,
+              ]);
+
+
+          if (storageError) {
+
+            console.error(
+              "Error eliminando imagen:",
+              storageError
+            );
+
+          }
+
+        }
+
+      } catch (error) {
+
+        console.error(
+          "Error procesando imagen:",
+          error
+        );
+
+      }
+
+    }
+
+
+    /* ================================
+       ELIMINAR POST
+    ================================= */
+
+    const { error } =
+      await supabase
+        .from("posts")
+        .delete()
+        .eq(
+          "id",
+          post.id
+        )
+        .eq(
+          "user_id",
+          session.user.id
+        );
+
+
+    if (error) {
+
+      console.error(
+        "Error eliminando publicación:",
+        error
+      );
+
+      return;
+    }
+
+
+    /* ================================
+       ACTUALIZAR FEED
+    ================================= */
+
+    setPosts(
+      (currentPosts) =>
+        currentPosts.filter(
+          (currentPost) =>
+            currentPost.id !==
+            post.id
+        )
+    );
+
+
+    if (
+      openComments ===
+      post.id
+    ) {
+
+      setOpenComments(null);
+
+    }
+
   }
 
 
@@ -351,11 +741,13 @@ function App() {
 
           ...post,
 
-          liked: !post.liked,
+          liked:
+            !post.liked,
 
-          likes: post.liked
-            ? post.likes - 1
-            : post.likes + 1,
+          likes:
+            post.liked
+              ? post.likes - 1
+              : post.likes + 1,
 
         };
 
@@ -379,7 +771,8 @@ function App() {
 
     const newComment = {
 
-      id: Date.now(),
+      id:
+        Date.now(),
 
       user:
         session?.user?.user_metadata?.name ||
@@ -390,7 +783,8 @@ function App() {
           ? `@${session.user.user_metadata.username}`
           : "@victor",
 
-      text: commentText.trim(),
+      text:
+        commentText.trim(),
 
     };
 
@@ -408,7 +802,8 @@ function App() {
 
           ...post,
 
-          comments: post.comments + 1,
+          comments:
+            post.comments + 1,
 
           commentList: [
             ...(post.commentList || []),
@@ -423,6 +818,7 @@ function App() {
 
 
     setCommentText("");
+
   }
 
 
@@ -446,13 +842,16 @@ function App() {
     return posts.filter((post) => {
 
       const content =
-        post.content?.toLowerCase() || "";
+        post.content?.toLowerCase() ||
+        "";
 
       const user =
-        post.user?.toLowerCase() || "";
+        post.user?.toLowerCase() ||
+        "";
 
       const username =
-        post.username?.toLowerCase() || "";
+        post.username?.toLowerCase() ||
+        "";
 
 
       return (
@@ -480,8 +879,10 @@ function App() {
       return;
     }
 
+
     const currentUserId =
       session.user.id;
+
 
     const isFollowing =
       following.includes(userId);
@@ -502,6 +903,7 @@ function App() {
             userId
           );
 
+
       if (error) {
 
         console.error(
@@ -516,9 +918,11 @@ function App() {
       setFollowing(
         (currentFollowing) =>
           currentFollowing.filter(
-            (id) => id !== userId
+            (id) =>
+              id !== userId
           )
       );
+
 
     } else {
 
@@ -526,12 +930,15 @@ function App() {
         await supabase
           .from("follows")
           .insert({
+
             follower_id:
               currentUserId,
 
             following_id:
               userId,
+
           });
+
 
       if (error) {
 
@@ -546,8 +953,11 @@ function App() {
 
       setFollowing(
         (currentFollowing) => [
+
           ...currentFollowing,
+
           userId,
+
         ]
       );
 
@@ -566,7 +976,9 @@ function App() {
 
 
     if (page !== "Explorar") {
+
       setSearchQuery("");
+
     }
 
   }
@@ -586,35 +998,61 @@ function App() {
 
           <Home
 
-            posts={posts}
+            posts={
+              posts
+            }
 
-            newPost={newPost}
+            newPost={
+              newPost
+            }
 
-            setNewPost={setNewPost}
+            setNewPost={
+              setNewPost
+            }
 
-            selectedImage={selectedImage}
+            selectedImage={
+              selectedImage
+            }
 
             setSelectedImage={
               setSelectedImage
             }
 
-            onPublish={publishPost}
+            onPublish={
+              publishPost
+            }
 
-            openComments={openComments}
+            openComments={
+              openComments
+            }
 
             setOpenComments={
               setOpenComments
             }
 
-            onToggleLike={toggleLike}
+            onToggleLike={
+              toggleLike
+            }
 
-            commentText={commentText}
+            commentText={
+              commentText
+            }
 
             setCommentText={
               setCommentText
             }
 
-            onAddComment={addComment}
+            onAddComment={
+              addComment
+            }
+
+            onDeletePost={
+              deletePost
+            }
+
+            currentUserId={
+              session.user.id
+            }
 
           />
 
@@ -627,9 +1065,13 @@ function App() {
 
           <Explore
 
-            posts={posts}
+            posts={
+              posts
+            }
 
-            searchQuery={searchQuery}
+            searchQuery={
+              searchQuery
+            }
 
             setSearchQuery={
               setSearchQuery
@@ -639,7 +1081,9 @@ function App() {
               getSearchResults
             }
 
-            onToggleLike={toggleLike}
+            onToggleLike={
+              toggleLike
+            }
 
           />
 
@@ -652,9 +1096,13 @@ function App() {
 
           <People
 
-            session={session}
+            session={
+              session
+            }
 
-            following={following}
+            following={
+              following
+            }
 
             onToggleFollow={
               toggleFollow
@@ -686,15 +1134,25 @@ function App() {
 
           <Profile
 
-            session={session}
+            session={
+              session
+            }
 
-            posts={posts}
+            posts={
+              posts
+            }
 
-            following={following}
+            following={
+              following
+            }
 
-            followers={followers}
+            followers={
+              followers
+            }
 
-            onToggleLike={toggleLike}
+            onToggleLike={
+              toggleLike
+            }
 
           />
 
@@ -797,9 +1255,13 @@ function App() {
 
       <Sidebar
 
-        activePage={activePage}
+        activePage={
+          activePage
+        }
 
-        onChangePage={changePage}
+        onChangePage={
+          changePage
+        }
 
       />
 
@@ -820,7 +1282,8 @@ function App() {
               ACCIÓN DEL HEADER
           ================================= */}
 
-          {activePage === "Explorar" ? (
+          {activePage ===
+          "Explorar" ? (
 
             <div className="search-container">
 
@@ -832,7 +1295,9 @@ function App() {
               <input
                 type="text"
                 placeholder="Buscar..."
-                value={searchQuery}
+                value={
+                  searchQuery
+                }
                 onChange={(e) =>
                   setSearchQuery(
                     e.target.value
@@ -842,12 +1307,15 @@ function App() {
 
             </div>
 
-          ) : activePage === "Inicio" ? (
+          ) : activePage ===
+            "Inicio" ? (
 
             <button
               className="search-button notification-button"
               onClick={() =>
-                changePage("Notificaciones")
+                changePage(
+                  "Notificaciones"
+                )
               }
               aria-label="Notificaciones"
               title="Notificaciones"
@@ -865,7 +1333,9 @@ function App() {
             <button
               className="search-button"
               onClick={() =>
-                changePage("Explorar")
+                changePage(
+                  "Explorar"
+                )
               }
               aria-label="Buscar"
               title="Buscar"
@@ -901,49 +1371,60 @@ function App() {
         aria-label="Navegación principal"
       >
 
-        {mobileNavItems.map((item) => {
+        {mobileNavItems.map(
+          (item) => {
 
-          const Icon = item.icon;
-
-          const isActive =
-            activePage === item.name;
+            const Icon =
+              item.icon;
 
 
-          return (
+            const isActive =
+              activePage ===
+              item.name;
 
-            <button
-              key={item.name}
-              className={
-                isActive
-                  ? "mobile-nav-item active"
-                  : "mobile-nav-item"
-              }
-              onClick={() =>
-                changePage(item.name)
-              }
-              aria-label={item.name}
-            >
 
-              <Icon
-                size={21}
-                strokeWidth={
-                  isActive
-                    ? 2.2
-                    : 1.7
+            return (
+
+              <button
+                key={
+                  item.name
                 }
-              />
+                className={
+                  isActive
+                    ? "mobile-nav-item active"
+                    : "mobile-nav-item"
+                }
+                onClick={() =>
+                  changePage(
+                    item.name
+                  )
+                }
+                aria-label={
+                  item.name
+                }
+              >
+
+                <Icon
+                  size={21}
+                  strokeWidth={
+                    isActive
+                      ? 2.2
+                      : 1.7
+                  }
+                />
 
 
-              <span>
-                {item.name}
-              </span>
+                <span>
+                  {item.name}
+                </span>
 
 
-            </button>
+              </button>
 
-          );
+            );
 
-        })}
+          }
+        )}
 
       </nav>
 

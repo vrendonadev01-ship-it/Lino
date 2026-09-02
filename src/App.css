@@ -2730,3 +2730,294 @@ button {
   text-align: center;
   color: #666;
 }
+
+/* =================================
+   MENÚ DE PUBLICACIÓN
+================================= */
+
+.post-menu-container {
+  position: relative;
+  margin-left: auto;
+}
+
+
+.post-menu-button {
+  width: 32px;
+  height: 32px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  border-radius: 50%;
+
+  background: transparent;
+
+  color: #777;
+
+  cursor: pointer;
+
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+
+
+.post-menu-button:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ddd;
+}
+
+
+/* =================================
+   OVERLAY
+================================= */
+
+.post-menu-overlay {
+  position: fixed;
+
+  inset: 0;
+
+  z-index: 40;
+
+  background: transparent;
+}
+
+
+/* =================================
+   MENÚ
+================================= */
+
+.post-menu {
+  position: absolute;
+
+  top: 38px;
+  right: 0;
+
+  z-index: 50;
+
+  width: 220px;
+
+  padding: 7px;
+
+  border: 1px solid
+    rgba(255, 255, 255, 0.09);
+
+  border-radius: 14px;
+
+  background:
+    rgba(22, 22, 24, 0.96);
+
+  box-shadow:
+    0 18px 45px
+    rgba(0, 0, 0, 0.45);
+
+  backdrop-filter:
+    blur(18px);
+
+  -webkit-backdrop-filter:
+    blur(18px);
+
+  animation:
+    postMenuIn
+    0.16s ease;
+}
+
+
+@keyframes postMenuIn {
+
+  from {
+    opacity: 0;
+    transform:
+      translateY(-5px)
+      scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0)
+      scale(1);
+  }
+
+}
+
+
+/* =================================
+   OPCIONES
+================================= */
+
+.post-menu-item {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 11px;
+
+  padding: 10px 11px;
+
+  border: none;
+
+  border-radius: 9px;
+
+  background: transparent;
+
+  color: #ddd;
+
+  font-family: inherit;
+
+  font-size: 13px;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+
+.post-menu-item:hover {
+  background:
+    rgba(255, 255, 255, 0.07);
+
+  color: white;
+}
+
+
+.post-menu-item svg {
+  flex-shrink: 0;
+
+  color: #999;
+}
+
+
+.post-menu-item:hover svg {
+  color: #ccc;
+}
+
+
+/* =================================
+   PELIGRO
+================================= */
+
+.post-menu-item.danger {
+  color: #e98585;
+}
+
+
+.post-menu-item.danger svg {
+  color: #d87373;
+}
+
+
+.post-menu-item.danger:hover {
+  background:
+    rgba(220, 70, 70, 0.10);
+
+  color: #ff9999;
+}
+
+
+.post-menu-item.danger:hover svg {
+  color: #ff9999;
+}
+
+
+/* =================================
+   SEPARADOR
+================================= */
+
+.post-menu-divider {
+  height: 1px;
+
+  margin: 6px 4px;
+
+  background:
+    rgba(255, 255, 255, 0.07);
+}
+
+
+/* =================================
+   MENSAJE "ENLACE COPIADO"
+================================= */
+
+.post-copy-message {
+  display: inline-flex;
+
+  align-items: center;
+
+  margin:
+    2px 0
+    8px;
+
+  padding:
+    6px
+    10px;
+
+  border-radius: 8px;
+
+  background:
+    rgba(255, 255, 255, 0.06);
+
+  color: #aaa;
+
+  font-size: 12px;
+
+  animation:
+    postCopyIn
+    0.18s ease;
+}
+
+
+@keyframes postCopyIn {
+
+  from {
+    opacity: 0;
+    transform:
+      translateY(-3px);
+  }
+
+  to {
+    opacity: 1;
+    transform:
+      translateY(0);
+  }
+
+}
+
+
+/* =================================
+   FEED VACÍO
+================================= */
+
+.feed-empty {
+  padding:
+    70px
+    20px;
+
+  text-align: center;
+
+  color: #777;
+}
+
+
+.feed-empty h3 {
+  margin: 0 0 7px;
+
+  color: #ddd;
+
+  font-size: 15px;
+}
+
+
+.feed-empty p {
+  margin: 0;
+
+  color: #666;
+
+  font-size: 13px;
+}
